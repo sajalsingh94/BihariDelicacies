@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bihari Delicacies - Home</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header id="site-header"></header>
+  <main class="container">
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Bihari Delicacies</h1>
+        <p>Discover and sell authentic snacks from Bihar.</p>
+        <a class="btn" href="/upload.html">Sell your snack</a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Featured Snacks</h2>
+      <div id="featured-grid" class="card-grid"></div>
+      <p id="no-featured" class="muted" style="display:none;">No featured snacks yet. Be the first to <a href="/upload.html">upload</a>!</p>
+    </section>
+  </main>
+
+  <footer class="footer">© <span id="year"></span> Bihari Delicacies</footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/home.js"></script>
+</body>
+</html>
