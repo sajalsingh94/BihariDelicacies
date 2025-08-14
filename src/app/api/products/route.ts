@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Product from '@/models/Product';
+import { mockProducts } from '@/lib/mock';
 
 export async function GET(request: Request) {
-	await connectToDatabase();
 	const { searchParams } = new URL(request.url);
 	const category = searchParams.get('category') || undefined;
 	const min = Number(searchParams.get('min') || 0);
@@ -12,21 +12,39 @@ export async function GET(request: Request) {
 	const page = Number(searchParams.get('page') || 1);
 	const limit = Number(searchParams.get('limit') || 12);
 
-	const filter: any = { price: { $gte: min, $lte: max } };
-	if (category) filter.category = category;
-	if (q) filter.title = { $regex: q, $options: 'i' };
+	const filterFn = (p: any) => (
+		(p.price >= min && p.price <= max) &&
+		(!category || p.category === category) &&
+		(!q || new RegExp(q, 'i').test(p.title))
+	);
 
-	const products = await Product.find(filter)
-		.sort({ createdAt: -1 })
-		.skip((page - 1) * limit)
-		.limit(limit);
-	const total = await Product.countDocuments(filter);
-	return NextResponse.json({ products, total, page, pages: Math.ceil(total / limit) });
+	try {
+		await connectToDatabase();
+		const filter: any = { price: { $gte: min, $lte: max } };
+		if (category) filter.category = category;
+		if (q) filter.title = { $regex: q, $options: 'i' };
+		const products = await Product.find(filter)
+			.sort({ createdAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit);
+		const total = await Product.countDocuments(filter);
+		return NextResponse.json({ products, total, page, pages: Math.ceil(total / limit) });
+	} catch {
+		const filtered = mockProducts.filter(filterFn);
+		const total = filtered.length;
+		const start = (page - 1) * limit;
+		const products = filtered.slice(start, start + limit);
+		return NextResponse.json({ products, total, page, pages: Math.ceil(total / limit), mock: true });
+	}
 }
 
 export async function POST(request: Request) {
-	await connectToDatabase();
-	const body = await request.json();
-	const product = await Product.create(body);
-	return NextResponse.json(product, { status: 201 });
+	try {
+		await connectToDatabase();
+		const body = await request.json();
+		const product = await Product.create(body);
+		return NextResponse.json(product, { status: 201 });
+	} catch {
+		return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
+	}
 }
