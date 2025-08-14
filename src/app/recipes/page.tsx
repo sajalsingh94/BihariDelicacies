@@ -1,18 +1,37 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { headers } from 'next/headers';
-
-function getBaseUrl() {
-	const hdrs = headers();
-	const host = hdrs.get('host') || 'localhost:3000';
-	const proto = hdrs.get('x-forwarded-proto') || (process.env.NODE_ENV === 'production' ? 'https' : 'http');
-	return `${proto}://${host}`;
-}
+import { connectToDatabase } from '@/lib/db';
+import Recipe from '@/models/Recipe';
+import { mockRecipes } from '@/lib/mock';
 
 async function fetchRecipes(searchParams: Record<string, string>) {
-	const qs = new URLSearchParams(searchParams as any).toString();
-	const res = await fetch(`${getBaseUrl()}/api/recipes?${qs}`, { cache: 'no-store' });
-	return res.json();
+	const category = searchParams.category || undefined;
+	const q = searchParams.q || '';
+	const page = Number(searchParams.page || 1);
+	const limit = Number(searchParams.limit || 12);
+
+	const filterFn = (r: any) => (
+		(!category || r.category === category) && (!q || new RegExp(q, 'i').test(r.title))
+	);
+
+	try {
+		await connectToDatabase();
+		const filter: any = {};
+		if (category) filter.category = category;
+		if (q) filter.title = { $regex: q, $options: 'i' };
+		const recipes = await Recipe.find(filter)
+			.sort({ createdAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit);
+		const total = await Recipe.countDocuments(filter);
+		return { recipes: JSON.parse(JSON.stringify(recipes)), total, page, pages: Math.ceil(total / limit) };
+	} catch {
+		const filtered = mockRecipes.filter(filterFn);
+		const total = filtered.length;
+		const start = (page - 1) * limit;
+		const recipes = filtered.slice(start, start + limit);
+		return { recipes, total, page, pages: Math.ceil(total / limit) };
+	}
 }
 
 export default async function RecipesPage({ searchParams }: { searchParams: Record<string, string> }) {

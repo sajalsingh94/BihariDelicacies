@@ -1,23 +1,20 @@
 import Image from 'next/image';
-import { headers } from 'next/headers';
+import { connectToDatabase } from '@/lib/db';
+import Recipe from '@/models/Recipe';
+import { mockRecipes } from '@/lib/mock';
 
-function getBaseUrl() {
-	const hdrs = headers();
-	const host = hdrs.get('host') || 'localhost:3000';
-	const proto = hdrs.get('x-forwarded-proto') || (process.env.NODE_ENV === 'production' ? 'https' : 'http');
-	return `${proto}://${host}`;
-}
-
-async function fetchRecipeById(id: string) {
-	// No by-id API yet; fetch list and filter
-	const base = getBaseUrl();
-	const res = await fetch(`${base}/api/recipes`, { cache: 'no-store' });
-	const data = await res.json();
-	return (data.recipes || []).find((r: any) => r._id === id) || null;
+async function getRecipe(id: string) {
+	try {
+		await connectToDatabase();
+		const recipe = await Recipe.findById(id);
+		return recipe ? JSON.parse(JSON.stringify(recipe)) : null;
+	} catch {
+		return mockRecipes.find(r => r._id === id) || null;
+	}
 }
 
 export default async function RecipeDetailPage({ params }: { params: { id: string } }) {
-	const recipe = await fetchRecipeById(params.id);
+	const recipe = await getRecipe(params.id);
 	if (!recipe) return <div className="py-12">Recipe not found.</div>;
 	return (
 		<article className="max-w-3xl mx-auto bg-white p-6 rounded-2xl shadow-card">

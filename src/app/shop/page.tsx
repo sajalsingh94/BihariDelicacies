@@ -1,18 +1,41 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { headers } from 'next/headers';
-
-function getBaseUrl() {
-	const hdrs = headers();
-	const host = hdrs.get('host') || 'localhost:3000';
-	const proto = hdrs.get('x-forwarded-proto') || (process.env.NODE_ENV === 'production' ? 'https' : 'http');
-	return `${proto}://${host}`;
-}
+import { connectToDatabase } from '@/lib/db';
+import Product from '@/models/Product';
+import { mockProducts } from '@/lib/mock';
 
 async function fetchProducts(searchParams: Record<string, string>) {
-	const qs = new URLSearchParams(searchParams as any).toString();
-	const res = await fetch(`${getBaseUrl()}/api/products?${qs}`, { cache: 'no-store' });
-	return res.json();
+	const category = searchParams.category || undefined;
+	const min = Number(searchParams.min || 0);
+	const max = Number(searchParams.max || Number.MAX_SAFE_INTEGER);
+	const q = searchParams.q || '';
+	const page = Number(searchParams.page || 1);
+	const limit = Number(searchParams.limit || 12);
+
+	const filterFn = (p: any) => (
+		(p.price >= min && p.price <= max) &&
+		(!category || p.category === category) &&
+		(!q || new RegExp(q, 'i').test(p.title))
+	);
+
+	try {
+		await connectToDatabase();
+		const filter: any = { price: { $gte: min, $lte: max } };
+		if (category) filter.category = category;
+		if (q) filter.title = { $regex: q, $options: 'i' };
+		const products = await Product.find(filter)
+			.sort({ createdAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit);
+		const total = await Product.countDocuments(filter);
+		return { products: JSON.parse(JSON.stringify(products)), total, page, pages: Math.ceil(total / limit) };
+	} catch {
+		const filtered = mockProducts.filter(filterFn);
+		const total = filtered.length;
+		const start = (page - 1) * limit;
+		const products = filtered.slice(start, start + limit);
+		return { products, total, page, pages: Math.ceil(total / limit) };
+	}
 }
 
 export default async function ShopPage({ searchParams }: { searchParams: Record<string, string> }) {
