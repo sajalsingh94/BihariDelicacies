@@ -1,15 +1,23 @@
 import Image from 'next/image';
+import { headers } from 'next/headers';
 
-async function fetchRecipe(id: string) {
-	const base = process.env.NEXT_PUBLIC_SITE_URL || '';
-	const res = await fetch(`${base}/api/recipes?recipeId=${id}`, { cache: 'no-store' });
-	return res.json();
+function getBaseUrl() {
+	const hdrs = headers();
+	const host = hdrs.get('host') || 'localhost:3000';
+	const proto = hdrs.get('x-forwarded-proto') || (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+	return `${proto}://${host}`;
+}
+
+async function fetchRecipeById(id: string) {
+	// No by-id API yet; fetch list and filter
+	const base = getBaseUrl();
+	const res = await fetch(`${base}/api/recipes`, { cache: 'no-store' });
+	const data = await res.json();
+	return (data.recipes || []).find((r: any) => r._id === id) || null;
 }
 
 export default async function RecipeDetailPage({ params }: { params: { id: string } }) {
-	// Simplified: fetch list and filter client-side if needed (API-by-id can be added later)
-	const data = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/recipes`, { cache: 'no-store' }).then(r => r.json());
-	const recipe = (data.recipes || []).find((r: any) => r._id === params.id);
+	const recipe = await fetchRecipeById(params.id);
 	if (!recipe) return <div className="py-12">Recipe not found.</div>;
 	return (
 		<article className="max-w-3xl mx-auto bg-white p-6 rounded-2xl shadow-card">

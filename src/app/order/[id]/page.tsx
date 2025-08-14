@@ -1,5 +1,14 @@
+import { headers } from 'next/headers';
+
+function getBaseUrl() {
+	const hdrs = headers();
+	const host = hdrs.get('host') || 'localhost:3000';
+	const proto = hdrs.get('x-forwarded-proto') || (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+	return `${proto}://${host}`;
+}
+
 async function fetchOrder(id: string) {
-	const base = process.env.NEXT_PUBLIC_SITE_URL || '';
+	const base = getBaseUrl();
 	const res = await fetch(`${base}/api/orders/${id}`, { cache: 'no-store' });
 	if (!res.ok) return null;
 	return res.json();

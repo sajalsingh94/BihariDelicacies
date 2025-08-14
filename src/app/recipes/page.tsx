@@ -1,9 +1,17 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { headers } from 'next/headers';
+
+function getBaseUrl() {
+	const hdrs = headers();
+	const host = hdrs.get('host') || 'localhost:3000';
+	const proto = hdrs.get('x-forwarded-proto') || (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+	return `${proto}://${host}`;
+}
 
 async function fetchRecipes(searchParams: Record<string, string>) {
 	const qs = new URLSearchParams(searchParams as any).toString();
-	const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/recipes?${qs}`, { cache: 'no-store' });
+	const res = await fetch(`${getBaseUrl()}/api/recipes?${qs}`, { cache: 'no-store' });
 	return res.json();
 }
 
